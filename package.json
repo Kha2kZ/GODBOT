@@ -1,1 +1,2 @@
-Initial commit: Discord chat bot skeleton (GODBOT)
+cat > package.json <<'JSON' { "name": "GODBOT", "version": "1.0.0", "description": "Discord bot that posts messages via /chat command", "main": "index.js", "license": "MIT", "scripts": { "deploy": "node deploy-commands.js", "start": "node index.js" }, "dependencies": { "discord.js": "^14.14.0", "dotenv": "^16.0.0", "@discordjs/rest": "^1.6.0", "discord-api-types": "^0.37.40" } } JSON
+git add package.json git commit -m "Fix package.json: valid JSON" git push origin gititit

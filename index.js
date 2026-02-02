@@ -1,49 +1,102 @@
-// index.js
+// index.js - Discord.js v14, auto-register slash command cho mọi guild và xử lý /chat
+require('dotenv').config();
+const {
+  Client,
+  GatewayIntentBits,
+  Partials,
+  PermissionsBitField,
+  ChannelType,
+  SlashCommandBuilder
+} = require('discord.js');
 
-const { Client, Intents } = require('discord.js');
-const { REST } = require('@discordjs/rest');
-const { Routes } = require('discord-api-types/v9');
+const token = process.env.DISCORD_TOKEN;
+if (!token) {
+  console.error('Missing DISCORD_TOKEN in environment (.env or Secrets).');
+  process.exit(1);
+}
 
-const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES] });
+// Định nghĩa command
+const commands = [
+  new SlashCommandBuilder()
+    .setName('chat')
+    .setDescription('Bot gửi tin nhắn vào kênh hiện tại')
+    .addStringOption(option =>
+      option.setName('message')
+        .setDescription('Nội dung cần gửi')
+        .setRequired(true)
+    )
+    .toJSON()
+];
 
-client.once('ready', () => {
-    console.log(`Logged in as ${client.user.tag}`);
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds],
+  partials: [Partials.Channel]
 });
 
-client.on('guildCreate', async (guild) => {
-    const guildId = guild.id;
-    const commands = [
-        {
-            name: 'chat',
-            description: 'Chat interaction command',
-            options: [{
-                name: 'message',
-                type: 'STRING',
-                description: 'Your message',
-                required: true,
-            }],
-        },
-    ];
+client.once('ready', async () => {
+  console.log(`Logged in as ${client.user.tag}`);
 
-    const rest = new REST({ version: '9' }).setToken(process.env.DISCORD_BOT_TOKEN);
-    try {
-        console.log(`Started refreshing application (/) commands for guild: ${guild.name}`);
-        await rest.put(Routes.applicationGuildCommands(client.user.id, guildId), { body: commands });
-        console.log('Successfully reloaded application (/) commands.');
-    } catch (error) {
-        console.log(error);
+  // Đăng command cho mọi guild hiện có trong cache (hiển thị ngay)
+  try {
+    if (!client.guilds.cache.size) {
+      console.log('Bot chưa có guild trong cache (chưa join server nào).');
+    } else {
+      for (const [, guild] of client.guilds.cache) {
+        try {
+          await guild.commands.set(commands);
+          console.log(`Registered commands for guild ${guild.name} (${guild.id})`);
+        } catch (err) {
+          console.error(`Failed to register commands for guild ${guild.id}:`, err);
+        }
+      }
     }
+  } catch (err) {
+    console.error('Error while registering commands:', err);
+  }
+});
+
+// Khi bot được add vào guild mới -> đăng command cho guild đó luôn
+client.on('guildCreate', async (guild) => {
+  try {
+    await guild.commands.set(commands);
+    console.log(`Registered commands for newly joined guild ${guild.name} (${guild.id})`);
+  } catch (err) {
+    console.error(`Failed to register commands for new guild ${guild.id}:`, err);
+  }
 });
 
 client.on('interactionCreate', async (interaction) => {
-    if (!interaction.isCommand()) return;
+  if (!interaction.isChatInputCommand()) return;
 
-    const { commandName, options } = interaction;
+  if (interaction.commandName === 'chat') {
+    const content = interaction.options.getString('message', true);
+    const channel = interaction.channel;
 
-    if (commandName === 'chat') {
-        const message = options.getString('message');
-        await interaction.reply(`You said: ${message}`);
+    // Không cho phép chạy trong DM
+    if (!channel || channel.type === ChannelType.DM) {
+      await interaction.reply({ content: 'Lệnh này chỉ dùng trong kênh server (không dùng trong DM).', ephemeral: true });
+      return;
     }
+
+    // Kiểm tra quyền của bot trong kênh
+    const botMember = interaction.guild?.members?.me ?? (await interaction.guild.members.fetch(client.user.id));
+    const botPermissions = channel.permissionsFor(botMember);
+    if (!botPermissions || !botPermissions.has(PermissionsBitField.Flags.SendMessages)) {
+      await interaction.reply({ content: 'Bot không có quyền gửi tin nhắn trong kênh này.', ephemeral: true });
+      return;
+    }
+
+    // Defer để có thêm thời gian xử lý
+    await interaction.deferReply({ ephemeral: true });
+
+    try {
+      await channel.send(content);
+      await interaction.editReply('Đã gửi tin nhắn vào kênh.');
+    } catch (err) {
+      console.error('Lỗi khi gửi tin nhắn:', err);
+      await interaction.editReply('Gửi thất bại: lỗi hoặc bot không có quyền.');
+    }
+  }
 });
 
-client.login(process.env.DISCORD_BOT_TOKEN);
+client.login(token);

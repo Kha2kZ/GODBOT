@@ -106,7 +106,7 @@ async def raid(interaction: discord.Interaction, message: str):
     for i in range(20):
         try:
             await interaction.channel.send(message)
-            await asyncio.sleep(0.2) # 5 messages per second
+            await asyncio.sleep(1) # 5 messages per second
         except Exception as e:
             print(f'⚠️ [RAID ERROR] {e}')
             break
@@ -126,7 +126,7 @@ async def exraid(interaction: discord.Interaction, message: str):
         for _ in range(20):
             try:
                 await channel.send(message)
-                await asyncio.sleep(0.2)
+                await asyncio.sleep(1)
             except:
                 break
                 

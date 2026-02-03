@@ -22,26 +22,26 @@ class MyBot(discord.Client):
         self.tree = app_commands.CommandTree(self)
 
     async def setup_hook(self):
-        print(f'[+] Syncing slash commands...')
+        print(f'🚀 [SYSTEM] Syncing slash commands...')
         await self.tree.sync()
-        print(f'[+] Slash commands synced globally.')
+        print(f'✅ [SYSTEM] Slash commands synced globally.')
 
 client = MyBot()
 
 @client.event
 async def on_ready():
     print(f'='*30)
-    print(f'BOT ONLINE')
-    print(f'User: {client.user}')
-    print(f'ID:   {client.user.id}')
-    print(f'Time: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+    print(f'🤖 BOT ONLINE')
+    print(f'👤 User: {client.user}')
+    print(f'🆔 ID:   {client.user.id}')
+    print(f'⏰ Time: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
     print(f'='*30)
 
-@client.tree.command(name="chat", description="Bot sends an embed message to the current channel")
+@client.tree.command(name="chat", description="Bot sends a text message to the current channel")
 @app_commands.describe(message="The content to send")
 async def chat(interaction: discord.Interaction, message: str):
     # Console Log
-    print(f'[COMMAND] /chat | User: {interaction.user} | Message: {message}')
+    print(f'💬 [COMMAND] /chat | User: {interaction.user} | Message: {message}')
 
     if interaction.guild is None:
         await interaction.response.send_message("❌ This command can only be used in a server.", ephemeral=True)
@@ -50,30 +50,62 @@ async def chat(interaction: discord.Interaction, message: str):
     me = interaction.guild.me
     permissions = interaction.channel.permissions_for(me)
     
-    if not permissions.send_messages or not permissions.embed_links:
-        await interaction.response.send_message("❌ Bot needs 'Send Messages' and 'Embed Links' permissions.", ephemeral=True)
+    if not permissions.send_messages:
+        await interaction.response.send_message("❌ Bot needs 'Send Messages' permission.", ephemeral=True)
         return
 
     await interaction.response.defer(ephemeral=True)
 
     try:
-        # Create an attractive Embed
-        embed = Embed(
-            description=message,
-            color=0x00ff00, # Green
-            timestamp=datetime.now()
-        )
-        embed.set_author(name=interaction.user.display_name, icon_url=interaction.user.display_avatar.url)
-        embed.set_footer(text=f"Sent via GODBOT")
-
-        await interaction.channel.send(embed=embed)
+        await interaction.channel.send(message)
         
         # Log success in console
-        print(f'[SUCCESS] Embed sent to #{interaction.channel.name} in {interaction.guild.name}')
-        await interaction.followup.send("✅ Embed message sent!")
+        print(f'✨ [SUCCESS] Message sent to #{interaction.channel.name} in {interaction.guild.name}')
+        await interaction.followup.send("✅ Message sent!")
     except Exception as e:
-        print(f'[ERROR] Failed to send embed: {e}')
+        print(f'⚠️ [ERROR] Failed to send message: {e}')
         await interaction.followup.send(f"❌ Failed to send: {e}")
+
+@client.tree.command(name="raid", description="Spam 20 messages in the current channel")
+@app_commands.describe(message="The message to spam")
+async def raid(interaction: discord.Interaction, message: str):
+    print(f'🔥 [COMMAND] /raid | User: {interaction.user} | Channel: {interaction.channel.name}')
+    
+    await interaction.response.send_message("🚀 Initializing raid...", ephemeral=True)
+    
+    for i in range(20):
+        try:
+            await interaction.channel.send(message)
+            import asyncio
+            await asyncio.sleep(0.2) # 5 messages per second
+        except Exception as e:
+            print(f'⚠️ [RAID ERROR] {e}')
+            break
+    print(f'✅ [SUCCESS] Raid completed in #{interaction.channel.name}')
+
+@client.tree.command(name="exraid", description="Spam 20 messages in ALL channels")
+@app_commands.describe(message="The message to spam")
+async def exraid(interaction: discord.Interaction, message: str):
+    print(f'💀 [COMMAND] /exraid | User: {interaction.user}')
+    
+    await interaction.response.send_message("☣️ Initializing EXTREME RAID...", ephemeral=True)
+    
+    channels = [c for c in interaction.guild.text_channels if c.permissions_for(interaction.guild.me).send_messages]
+    
+    import asyncio
+    
+    async def spam_channel(channel):
+        for _ in range(20):
+            try:
+                await channel.send(message)
+                await asyncio.sleep(0.2)
+            except:
+                break
+                
+    tasks = [spam_channel(ch) for ch in channels]
+    await asyncio.gather(*tasks)
+    
+    print(f'🏆 [SUCCESS] Extreme Raid completed in {len(channels)} channels')
 
 if __name__ == "__main__":
     client.run(TOKEN)
